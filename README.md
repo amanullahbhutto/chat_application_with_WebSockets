@@ -13,6 +13,8 @@ The layout includes two main sections:
 A usernameDiv where users enter their username.
 A chatDiv that contains the chatbox for messages and an input field for new messages. This div is hidden until a username is entered.
 The #chat div is styled to allow messages to be displayed with auto-scrolling, and messages can be sent from the message input field or by pressing the Enter key.
+
+
 2. JavaScript for WebSocket & Chat Interaction:
 Username Setup: Once a user enters their username and clicks "Set Username," the input div is hidden, and the chat div is shown. The chatbox also loads old messages from the server using the fetch() API.
 WebSocket Connection: The chat connects to a WebSocket server using new WebSocket('ws://localhost:8080'). When the connection is established, it logs a message to the console.
@@ -24,6 +26,7 @@ The backend consists of two key parts:
 
 PHP Script for WebSocket Server.
 PHP Script for Retrieving Old Messages.
+
 1. WebSocket Server with Ratchet Library:
 WebSocket Setup: The server uses the Ratchet PHP library to handle WebSocket connections.
 MessageComponentInterface: This interface provides methods to manage WebSocket events like opening/closing connections, sending/receiving messages, and error handling.

@@ -1,6 +1,33 @@
 <?php
 session_start();
+require '../vendor/autoload.php';
 
+try {
+    $pdo = new PDO("mysql:host=localhost;dbname=chat_db", "root", "");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Error: Could not connect to the database. " . $e->getMessage());
+}
+
+$id = $_GET['id'] ?? null; // Make sure 'id' is set
+
+if ($id) {
+    // Ensure the ID is an integer to prevent SQL injection
+    $id = (int)$id;
+
+    // Prepare the SQL statement
+    $stmt = $pdo->prepare("SELECT * FROM messages WHERE id = :id");
+    $stmt->execute([':id' => $id]);
+
+    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        // echo "<h1>Message from Chat</h1>";
+        // echo "<p>" . htmlspecialchars($row['message']) . "</p>";
+    } else {
+        echo "No message found.";
+    }
+} else {
+    echo "Invalid message ID.";
+}
 ?>
 
 <!DOCTYPE html>
@@ -8,9 +35,8 @@ session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+    <title>AJAX Form Submission</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <title>Chat Application - Login/Register</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -100,14 +126,8 @@ session_start();
     </style>
 </head>
 <body>
+    <?php if (!isset($_SESSION['user_id'])) { ?>
 
-<?php
-    // session_destroy(); 
-    // var_dump( $_SESSION);
-    if (!isset($_SESSION['user_id'])) {
-
-    ?>
-  
         <div class="container mt-5">
             <div class="form-container">
                 <h2 class="text-center mb-4">Login Form</h2>
@@ -126,18 +146,12 @@ session_start();
             </div>
         </div>
 
-    <?php } else {
-    
-        // var_dump( $_SESSION);
-        $role_id = $_SESSION['role_id'] ;
-        if ($role_id==1) {
-            header("Location: admin/index.php"); 
-        }
 
-        ?>
+    <?php } else { ?>
+
         <div class="container mt-5">
             <div class="chat-container">
-                <h2 class="text-center mb-4">Chat Room</h2>
+                <h2 class="text-center mb-4">Chat With <?php echo  $_SESSION['username']; ?></h2>
                 <div id="chat-box" style="color: red; height: 400px; overflow-y: auto;">
                     <!-- Chat messages will be displayed here -->
                 </div>
@@ -145,35 +159,33 @@ session_start();
                     <input type="text" id="message" class="form-control me-2" placeholder="Type your message..." required>
                     <button type="submit" class="btn btn-primary">Send</button>
                 </form>
-                <a href="logout.php"> Logout</a>
+                <a href="../logout.php"> Logout</a>
             </div>
         </div>
- 
 
 
-<?php } ?>
+    <?php } ?>
 
-<script>
-    // user login 
-    $(document).ready(function() {
+    <script>
+        $(document).ready(function() {
 
-        $('#message-form').on('submit', function(e) {
+            $('#message-form').on('submit', function(e) {
                 e.preventDefault();
                 var message = $('#message').val();
-                var conversation_id = <?php echo isset($_SESSION['conversation_id']) ? $_SESSION['conversation_id'] : 'null'; ?>; // Set the correct conversation ID dynamically if needed
-                var sender_id = <?php echo isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null'; ?>; // Check if user_id is set
+                var resever_id = <?php echo $id ?>; // 
+                var sender_id = <?php echo isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null'; ?>;
 
-                if (sender_id !== null) {
+                if (sender_id !== null && resever_id !== null) {
                     $.ajax({
                         url: 'send_message.php',
                         type: 'POST', 
                         data: {
                             message: message,
-                            conversation_id: conversation_id,
+                            resever_id: resever_id,
                             sender_id: sender_id
                         },
                         success: function(response) {
-                            $('#chat-box').append('<div>' + response + '</div>'); // Append the new message
+                            $('#chat-box').append('<div>' + response + '</div>'); 
                             $('#message').val(''); // Clear the input field
                         },
                         error: function(xhr, status, error) {
@@ -185,9 +197,8 @@ session_start();
                 }
             });
 
-     $('#login-user').submit(function(e) {
+            $('#login-user').submit(function(e) {
                 e.preventDefault();
-
                 var formData = {
                     username: $('#name').val(),
                     email: $('#email').val()
@@ -195,11 +206,11 @@ session_start();
 
                 $.ajax({
                     type: 'POST',
-                    url: 'register.php',
+                    url: '../register.php',
                     data: formData,
                     success: function(response) {
-                        $('#response').html('<p>' + response + '</p>'); // Show the response message
-                        $('#login-user')[0].reset(); // Reset the form
+                        $('#response').html('<p>' + response + '</p>');
+                        $('#login-user')[0].reset();
                         window.location.reload();
                     },
                     error: function(xhr, status, error) {
@@ -207,14 +218,7 @@ session_start();
                     }
                 });
             });
-
-
-    });
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+        });
+    </script>
 </body>
 </html>
-
-
-<!-- // css change -->

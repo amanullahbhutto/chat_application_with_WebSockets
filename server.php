@@ -13,14 +13,11 @@ class Chat implements MessageComponentInterface {
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
-
-        // Connect to the MySQL database
-        $this->pdo = new \PDO("mysql:host=localhost;dbname=chat_db", "root", ""); // Update with your DB credentials
+        $this->pdo = new \PDO("mysql:host=localhost;dbname=chat_db", "root", "");
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
 
     public function onOpen(ConnectionInterface $conn) {
-        // Store the new connection
         $this->clients->attach($conn);
         echo "New connection! ({$conn->resourceId})\n";
     }
@@ -30,14 +27,8 @@ class Chat implements MessageComponentInterface {
         $username = $data['username'];
         $message = $data['message'];
 
-        $numRecv = count($this->clients) - 1;
-        echo sprintf('Connection %d sending message "%s" from "%s" to %d other connection%s' . "\n"
-            , $from->resourceId, $message, $username, $numRecv, $numRecv == 1 ? '' : 's');
-
-        // Save message to the database
         $this->saveMessage($username, $message);
 
-        // Broadcast message to all connected clients
         foreach ($this->clients as $client) {
             $client->send(json_encode(['username' => $username, 'message' => $message]));
         }
@@ -53,29 +44,13 @@ class Chat implements MessageComponentInterface {
         $conn->close();
     }
 
-    protected function saveMessage($username, $message) {
+    private function saveMessage($username, $message) {
         $stmt = $this->pdo->prepare("INSERT INTO messages (username, message) VALUES (:username, :message)");
-        $stmt->execute([
-            ':username' => $username,
-            ':message' => $message
-        ]);
-        echo "Message saved to the database.\n";
+        $stmt->execute([':username' => $username, ':message' => $message]);
     }
 }
 
-// Set up the WebSocket server
-$chatServer = new Chat();
-$server = IoServer::factory(
-    new HttpServer(
-        new WsServer(
-            $chatServer
-        )
-    ),
-    8080
-);
-
-echo "WebSocket server running on ws://localhost:8080...\n";
+// Run the WebSocket server
+$server = IoServer::factory(new HttpServer(new WsServer(new Chat())), 8080);
 $server->run();
-
-
-// old code 
+?>
