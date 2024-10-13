@@ -13,11 +13,14 @@ class Chat implements MessageComponentInterface {
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
+
+        // Connect to the MySQL database
         $this->pdo = new \PDO("mysql:host=localhost;dbname=chat_db", "root", "");
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
 
     public function onOpen(ConnectionInterface $conn) {
+        // Store the new connection
         $this->clients->attach($conn);
         echo "New connection! ({$conn->resourceId})\n";
     }
@@ -27,8 +30,20 @@ class Chat implements MessageComponentInterface {
         $username = $data['username'];
         $message = $data['message'];
 
-        $this->saveMessage($username, $message);
+        $numRecv = count($this->clients) - 1;
+        echo sprintf(
+            'Connection %d sending message "%s" from "%s" to %d other connection%s' . "\n",
+            $from->resourceId,
+            $message,
+            $username,
+            $numRecv,
+            $numRecv == 1 ? '' : 's'
+        );
 
+        // Save message to the database with conversation_id
+        $this->saveMessage($username, $message, $data['conversation_id']);
+
+        // Broadcast message to all connected clients
         foreach ($this->clients as $client) {
             $client->send(json_encode(['username' => $username, 'message' => $message]));
         }
@@ -44,13 +59,39 @@ class Chat implements MessageComponentInterface {
         $conn->close();
     }
 
-    private function saveMessage($username, $message) {
-        $stmt = $this->pdo->prepare("INSERT INTO messages (username, message) VALUES (:username, :message)");
-        $stmt->execute([':username' => $username, ':message' => $message]);
+    // Save message with conversation_id and user_id
+    protected function saveMessage($username, $message, $conversationId) {
+        // Get user_id based on username
+        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = :username");
+        $stmt->execute([':username' => $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Insert the message into the database
+        if ($user) {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO messages (conversation_id, sender_id, message)
+                VALUES (:conversation_id, :sender_id, :message)
+            ");
+            $stmt->execute([
+                ':conversation_id' => $conversationId,
+                ':sender_id' => $user['id'],
+                ':message' => $message
+            ]);
+            echo "Message saved to the database.\n";
+        }
     }
 }
 
-// Run the WebSocket server
-$server = IoServer::factory(new HttpServer(new WsServer(new Chat())), 8080);
+// Set up the WebSocket server
+$chatServer = new Chat();
+$server = IoServer::factory(
+    new HttpServer(
+        new WsServer(
+            $chatServer
+        )
+    ),
+    8080
+);
+
+echo "WebSocket server running on ws://localhost:8080...\n";
 $server->run();
-?>

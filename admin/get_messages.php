@@ -1,31 +1,26 @@
 <?php
 session_start();
-require __DIR__ . '/vendor/autoload.php';
 
-// Ensure the user is logged in
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['error' => 'User not logged in']);
     exit;
 }
 
-// Ensure the conversation ID is set
-if (!isset($_SESSION['conversation_id'])) {
-    echo json_encode(['error' => 'Conversation ID is not set']);
+if (!isset($_GET['conversation_id'])) {
+    echo json_encode(['error' => 'Conversation ID is missing']);
     exit;
 }
 
 // Connect to the database
-try {
-    $pdo = new PDO("mysql:host=localhost;dbname=chat_db", "root", "");
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
-    exit;
-}
+$pdo = new PDO("mysql:host=localhost;dbname=chat_db", "root", "");
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Get conversation ID from session
-$conversationId = (int)$_SESSION['conversation_id'];
-
+$conversationId = (int) $_GET['conversation_id'];
 
 // Fetch messages for the conversation
 $stmt = $pdo->prepare("
@@ -41,5 +36,5 @@ $stmt->execute([':conversation_id' => $conversationId]);
 $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Return messages as JSON
+header('Content-Type: application/json');
 echo json_encode($messages);
-?>

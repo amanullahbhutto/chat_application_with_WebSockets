@@ -13,7 +13,7 @@ try {
 
 // Prepare the SQL statement with a join to get usernames
 $stmt = $pdo->prepare("
-    SELECT messages.id, messages.message, users.username 
+    SELECT messages.id, messages.message, users.username,messages.conversation_id 
     FROM messages 
     JOIN users ON messages.sender_id = users.id
 ");
@@ -64,7 +64,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         echo "<td>" . htmlspecialchars($row['id']) . "</td>"; // Message ID
                                         echo "<td>" . htmlspecialchars($row['username']) . "</td>"; // Username column
                                         echo "<td>" . htmlspecialchars($row['message']) . "</td>"; // Message column
-                                        echo "<td><a href='chat_with_user.php?id=" . htmlspecialchars($row['id']) . "' class='btn btn-primary'>Chat</a></td>"; // Chat link
+                                        echo "<td><a href='chat_with_user.php?conversation_id=" . htmlspecialchars($row['conversation_id']) . "' class='btn btn-primary'>Chat</a></td>"; // Chat link
                                         echo "</tr>";
                                     }
                                 } else {

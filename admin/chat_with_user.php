@@ -9,25 +9,9 @@ try {
     die("Error: Could not connect to the database. " . $e->getMessage());
 }
 
-$id = $_GET['id'] ?? null; // Make sure 'id' is set
+$conversation_id = $_GET['conversation_id'] ?? null; // Make sure 'id' is set
 
-if ($id) {
-    // Ensure the ID is an integer to prevent SQL injection
-    $id = (int)$id;
 
-    // Prepare the SQL statement
-    $stmt = $pdo->prepare("SELECT * FROM messages WHERE id = :id");
-    $stmt->execute([':id' => $id]);
-
-    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        // echo "<h1>Message from Chat</h1>";
-        // echo "<p>" . htmlspecialchars($row['message']) . "</p>";
-    } else {
-        echo "No message found.";
-    }
-} else {
-    echo "Invalid message ID.";
-}
 ?>
 
 <!DOCTYPE html>
@@ -150,43 +134,53 @@ if ($id) {
     <?php } else { ?>
 
         <div class="container mt-5">
-            <div class="chat-container">
-                <h2 class="text-center mb-4">Chat With <?php echo  $_SESSION['username']; ?></h2>
-                <div id="chat-box" style="color: red; height: 400px; overflow-y: auto;">
-                    <!-- Chat messages will be displayed here -->
-                </div>
-                <form id="message-form" class="d-flex">
-                    <input type="text" id="message" class="form-control me-2" placeholder="Type your message..." required>
-                    <button type="submit" class="btn btn-primary">Send</button>
-                </form>
-                <a href="../logout.php"> Logout</a>
-            </div>
-        </div>
+                <div class="chat-container">
+                    <h2 class="text-center mb-4">Chat Room</h2>
+                    <div id="chat-box" style="color: red; height: 400px; overflow-y: auto;">
+                        <!-- Messages will be appended here via JavaScript -->
+                    </div>
+                    <form id="message-form" class="d-flex">
 
+                        <input type="text" id="message" class="form-control me-2" placeholder="Type your message..." required>
+                        <button type="submit" id="send" class="btn btn-primary">Send</button>
+                    </form>
+                    <a href="../logout.php">Logout</a>
+                </div>
+            </div>
 
     <?php } ?>
 
     <script>
         $(document).ready(function() {
+            
+            var conn;
+            var chatBox = document.getElementById('chat-box');
+            var messageInput = document.getElementById('message');
+            var sendButton = document.getElementById('send');
+            // var session_user=  $_SESSION['username'];
+            // console.log(session_user);
+
+            var conversation_id = <?php echo $conversation_id ?>; 
+            var sender_id = <?php echo isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null'; ?>;
+            var username;
+            connectToChat(); 
+            loadOldMessages();  // Load previous messages
 
             $('#message-form').on('submit', function(e) {
                 e.preventDefault();
                 var message = $('#message').val();
-                var resever_id = <?php echo $id ?>; // 
-                var sender_id = <?php echo isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null'; ?>;
-
-                if (sender_id !== null && resever_id !== null) {
+                if (sender_id !== null && conversation_id !== null) {
                     $.ajax({
                         url: 'send_message.php',
                         type: 'POST', 
                         data: {
                             message: message,
-                            resever_id: resever_id,
+                            conversation_id: conversation_id,
                             sender_id: sender_id
                         },
                         success: function(response) {
-                            $('#chat-box').append('<div>' + response + '</div>'); 
-                            $('#message').val(''); // Clear the input field
+                            // $('#chat-box').append('<div>' + response + '</div>'); 
+                            // $('#message').val(''); // Clear the input field
                         },
                         error: function(xhr, status, error) {
                             $('#chat-box').append('<div>Error sending message: ' + error + '</div>');
@@ -218,7 +212,82 @@ if ($id) {
                     }
                 });
             });
-        });
+
+           
+             // Load old messages from the server
+        function loadOldMessages() {
+            fetch('get_messages.php?conversation_id='+conversation_id)  // Assuming your PHP file is named get_messages.php
+                .then(response => response.json())
+                .then(messages => {
+                    if (messages.error) {
+                        console.error("Error fetching messages:", messages.error);
+                        return;
+                    }
+                    messages.forEach(msg => {
+                        chatBox.innerHTML += `<p><strong>${msg.username}:</strong> ${msg.message}  (at ${msg.created_at})</p>`;
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+                })
+                .catch(error => {
+                    console.error("Error loading messages:", error);
+                });
+            }
+
+            function connectToChat() {
+            conn = new WebSocket('ws://localhost:8080'); // Correct WebSocket URL
+
+            conn.onopen = function(e) {
+                console.log("Connection established!");
+            };
+
+            conn.onmessage = function(e) {
+                let data = JSON.parse(e.data);
+                chatBox.innerHTML += `<p><strong>${data.username}:</strong> ${data.message}</p>`;
+                chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+            };
+
+            sendButton.onclick = function() {
+                if (messageInput.value) {
+                    let msgObj = { username: "Admin", message: messageInput.value };
+                    conn.send(JSON.stringify(msgObj));  // Send username and message
+                    messageInput.value = ''; // Clear input field
+                }
+            };
+
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendButton.click();
+                }
+            });
+        }
+
+  
+        async function fetchMessages() {
+                
+                const response = await fetch('get_messages.php?conversation_id='+conversation_id);
+                const messages = await response.json();
+
+            //  const messagesList = document.getElementById('chat-box');
+            chatBox.innerHTML = ''; // Clear existing messages
+
+                if (messages.error) {
+                    console.error(messages.error);
+                    return;
+                }
+                messages.forEach(msg => {
+                // const li = document.createElement('li');
+                // li.textContent = `${msg.username}: ${msg.message} (at ${msg.created_at})`;
+                // messagesList.appendChild(li);
+                chatBox.innerHTML += `<p><strong>${msg.username}:</strong> ${msg.message}  (at ${msg.created_at})</p>`;
+                });
+            // } catch (error) {
+            //     console.error('Error fetching messages:', error);
+            // }
+        }
+
+            // Fetch messages when the page loads
+            window.onload = fetchMessages;
+     });
     </script>
 </body>
 </html>

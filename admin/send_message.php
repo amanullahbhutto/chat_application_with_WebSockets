@@ -34,30 +34,30 @@ $sender_id = $_SESSION['user_id'];
 //     echo "Error: Invalid input.";
 //     exit;
 // }
-$resever_id = $_POST['resever_id'];
+$conversation_id = $_POST['conversation_id'];
 
 // Debug output
 // var_dump($resever_id); // Check if the value is correct
 
-// Prepare the SQL statement
-$stmt = $pdo->prepare("SELECT conversation_id FROM messages WHERE id = :resever_id");
+// // Prepare the SQL statement
+// $stmt = $pdo->prepare("SELECT conversation_id FROM messages WHERE id = :conversation_id");
 
-// Bind the resever_id to the placeholder
-$stmt->bindParam(':resever_id', $resever_id, PDO::PARAM_INT);
+// // Bind the resever_id to the placeholder
+// $stmt->bindParam(':conversation_id', $conversation_id, PDO::PARAM_INT);
 
-// Execute the statement
-$stmt->execute();
+// // Execute the statement
+// $stmt->execute();
 
-// Fetch the result
-$result = $stmt->fetch(PDO::FETCH_ASSOC);
+// // Fetch the result
+// $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Check if a conversation_id was found
-if ($result) {
-    $conversation_id = $result['conversation_id'];
-    // "Conversation ID: " . $conversation_id;
-} else {
-    echo "No conversation found for the provided resever_id.";
-}
+// // Check if a conversation_id was found
+// if ($result) {
+//     $conversation_id = $result['conversation_id'];
+//     // "Conversation ID: " . $conversation_id;
+// } else {
+//     echo "No conversation found for the provided resever_id.";
+// }
 
 
 
@@ -101,5 +101,3 @@ if ($conversation_id) {
     echo "Error: Conversation does not exist.";
 }
 ?>
-
-<!-- // 11111111111111 -->
